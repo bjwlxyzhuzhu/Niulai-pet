@@ -1,0 +1,40 @@
+appId: com.aichuangsai.niulai
+productName: 牛来
+copyright: Copyright © 2026 AI创赛贯通社
+
+directories:
+  output: release
+  buildResources: build
+
+# winwatch.ps1 是交给外部 powershell.exe 去读的，外部进程读不了 asar 归档里的文件，
+# 必须解包到 app.asar.unpacked/ 下（winwatch.js 里会相应改写路径）
+asarUnpack:
+  - electron/winwatch.ps1
+
+files:
+  - electron/**/*
+  - src/**/*
+  - assets/**/*
+  - package.json
+  - '!**/*.map'
+  - '!assets/sprites/_debug_*'
+
+# raw/ 是设定稿原图，只在重新切素材时需要，不进安装包
+extraMetadata:
+  main: electron/main.js
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  artifactName: 牛来-${version}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 牛来
+  deleteAppDataOnUninstall: false

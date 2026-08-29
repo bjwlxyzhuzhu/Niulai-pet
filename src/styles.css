@@ -1,0 +1,138 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* 舞台整体不吃鼠标事件，只有气泡和牛本体吃 —— 窗口四周的空白区域点下去会落到后面的窗口 */
+#stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---------- 气泡 ---------- */
+#bubble {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 178px;          /* 贴着半身像的头顶，尾巴才指得准 */
+  pointer-events: auto;
+  display: flex;
+  justify-content: center;
+}
+
+body.bodymode #bubble { bottom: 268px; }
+
+#bubble-text {
+  max-width: 300px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(255, 253, 250, 0.97);
+  color: #3A2E24;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  box-shadow: 0 6px 20px rgba(90, 60, 25, 0.18), 0 0 0 1px rgba(200, 160, 110, 0.35);
+  position: relative;
+  transform-origin: 50% 100%;
+  animation: pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  word-break: break-word;
+}
+
+/* 气泡尾巴 */
+#bubble-text::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  margin-left: -8px;
+  border: 8px solid transparent;
+  border-top-color: rgba(255, 253, 250, 0.97);
+  border-bottom: 0;
+}
+
+#bubble.hidden { display: none; }
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.86); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------- 牛来本体 ---------- */
+#pet {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  cursor: grab;
+  -webkit-app-region: no-drag;
+}
+
+#pet.dragging { cursor: grabbing; }
+
+#pet-img {
+  display: block;
+  height: 170px;          /* 半身模式默认高度 */
+  width: auto;
+  pointer-events: none;   /* 命中判定交给 #pet，避免图片自身的拖拽行为 */
+  filter: drop-shadow(0 6px 10px rgba(80, 50, 20, 0.28));
+  transition: height 0.18s ease;
+}
+
+/* 全身模式：拉高，让脑袋大小和半身模式大致对齐 */
+body.bodymode #pet-img { height: 260px; }
+
+/* ---------- 动效 ---------- */
+/* 常态呼吸 */
+#pet.breathe { animation: breathe 3.4s ease-in-out infinite; }
+@keyframes breathe {
+  0%, 100% { transform: translateX(-50%) scale(1, 1); }
+  50%      { transform: translateX(-50%) scale(1.018, 0.982); }
+}
+
+/* 被戳一下的弹动 */
+#pet.poke { animation: poke 0.36s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes poke {
+  0%   { transform: translateX(-50%) scale(1, 1); }
+  35%  { transform: translateX(-50%) scale(1.12, 0.88); }
+  70%  { transform: translateX(-50%) scale(0.94, 1.06); }
+  100% { transform: translateX(-50%) scale(1, 1); }
+}
+
+/* 跳舞 */
+#pet.dance { animation: dance 0.62s ease-in-out 4; }
+@keyframes dance {
+  0%   { transform: translateX(-50%) rotate(0deg)  translateY(0); }
+  25%  { transform: translateX(-50%) rotate(-7deg) translateY(-10px); }
+  50%  { transform: translateX(-50%) rotate(0deg)  translateY(0); }
+  75%  { transform: translateX(-50%) rotate(7deg)  translateY(-10px); }
+  100% { transform: translateX(-50%) rotate(0deg)  translateY(0); }
+}
+
+/* 崩溃：整段音频期间持续剧烈抖动，让「锁住不响应」看起来像在演出 */
+#pet.rage { animation: rage 0.11s linear infinite; }
+@keyframes rage {
+  0%   { transform: translateX(-50%) translate(-4px, 0)  rotate(-3deg) scale(1.06); }
+  25%  { transform: translateX(-50%) translate(4px, -3px) rotate(3deg)  scale(1.06); }
+  50%  { transform: translateX(-50%) translate(-3px, 2px) rotate(-2deg) scale(1.08); }
+  75%  { transform: translateX(-50%) translate(3px, -2px) rotate(2deg)  scale(1.06); }
+  100% { transform: translateX(-50%) translate(-4px, 0)  rotate(-3deg) scale(1.06); }
+}
+
+/* 委屈：背过身去（水平翻转 + 缩一点） */
+#pet.sulk #pet-img { transform: scaleX(-1); filter: drop-shadow(0 6px 10px rgba(80,50,20,0.28)) saturate(0.8); }
+#pet.sulk { animation: sulk 2.4s ease-in-out infinite; }
+@keyframes sulk {
+  0%, 100% { transform: translateX(-50%) translateY(0)   scale(0.97); }
+  50%      { transform: translateX(-50%) translateY(2px) scale(0.965); }
+}
