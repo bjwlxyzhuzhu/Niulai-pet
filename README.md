@@ -9,7 +9,7 @@ Windows 10 / 11，64 位。
 
 ## 安装与使用
 
-从 [GitHub Releases 下载牛来 0.1.0 安装包](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v0.1.0/%E7%89%9B%E6%9D%A5-0.1.0-setup.exe)，然后：
+从 [GitHub Releases 下载牛来 0.1.0 安装包](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v0.1.0/Niulai-0.1.0-setup.exe)，然后：
 
 双击 `牛来-0.1.0-setup.exe`，按提示装完即可。安装器不需要管理员权限，默认装在当前
 用户目录下，可以在安装过程中改路径。
