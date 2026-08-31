@@ -7,6 +7,32 @@ Windows 10 / 11，64 位。
 
 ---
 
+## 运行效果
+
+<p align="center">
+  <img src="docs/screenshots/chat.png" alt="牛来聊天窗口与桌面宠物" width="820">
+</p>
+<p align="center"><sub>聊天、语音朗读与桌面陪伴</sub></p>
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="docs/screenshots/greeting.png" alt="牛来挥手打招呼"><br><sub>陪伴与随机台词</sub></td>
+    <td align="center" width="50%"><img src="docs/screenshots/pointing.png" alt="牛来指向屏幕"><br><sub>俏皮互动</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/context-menu.png" alt="牛来右键功能菜单"><br><sub>右键菜单与快捷功能</sub></td>
+    <td align="center"><img src="docs/screenshots/panic.png" alt="牛来呼喊妈妈"><br><sub>狂点后的崩溃反应</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/singing.png" alt="牛来唱歌跳舞"><br><sub>唱歌与跳舞动作</sub></td>
+    <td align="center"><img src="docs/screenshots/surprised.png" alt="牛来惊讶表情"><br><sub>惊讶表情</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/angry.png" alt="牛来生气表情"><br><sub>生气表情</sub></td>
+    <td align="center"><img src="docs/screenshots/smirk.png" alt="牛来得意表情"><br><sub>得意表情</sub></td>
+  </tr>
+</table>
+
 ## 安装与使用
 
 两个版本，按需要挑一个：
