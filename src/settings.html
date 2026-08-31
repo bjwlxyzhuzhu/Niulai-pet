@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; img-src 'self' data:; media-src data:; style-src 'self'; script-src 'self';">
+  <title>牛来 · 设置</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <h1>牛来 · 设置</h1>
+
+  <div class="scroll">
+
+    <section>
+      <h2>DeepSeek 对话</h2>
+      <p class="hint">
+        填入 API key 之后，右键菜单里的「聊聊」才能用。
+        key 会用 Windows 账户密钥加密后存在本机，程序里没有任何一处能把它读回界面。
+        <strong>注意：你在聊天窗口里发的内容会送到 DeepSeek 的服务器。</strong>
+        天气播报和日程提醒不走这条路，你的日程不会被发出去。
+      </p>
+      <label class="field">
+        <span>API Key<span id="key-state" class="pill">未设置</span></span>
+        <div class="row">
+          <input type="password" id="apikey" placeholder="sk-..." autocomplete="off" spellcheck="false">
+          <button id="key-save">保存</button>
+          <button id="key-clear">清除</button>
+        </div>
+      </label>
+      <label class="field">
+        <span>模型</span>
+        <select id="model">
+          <option value="deepseek-chat">deepseek-chat（通用对话）</option>
+          <option value="deepseek-reasoner">deepseek-reasoner（推理，较慢较贵）</option>
+        </select>
+      </label>
+      <div class="row" style="margin-top:10px">
+        <button id="key-test">测试连接</button>
+        <div></div>
+      </div>
+      <p class="note dim" id="key-note"></p>
+    </section>
+
+    <section>
+      <h2>牛来的声音</h2>
+      <p class="hint">
+        用微软 Edge「朗读」背后的免费接口，不需要注册也不要 key。
+        <strong>只朗读聊天窗口里的回复</strong>——早晚播报不读，因为那里面有你的日程。
+        这是个非公开接口，微软哪天改了就会失效，那时会安静退回只显示文字。
+      </p>
+      <div class="checkline">
+        <input type="checkbox" id="tts-on">
+        <label for="tts-on">朗读聊天回复</label>
+      </div>
+      <label class="field">
+        <span>音色</span>
+        <select id="tts-voice">
+          <option value="zh-CN-YunxiaNeural">云夏 · 男童音（推荐）</option>
+          <option value="zh-CN-YunxiNeural">云希 · 少年音</option>
+          <option value="zh-CN-YunjianNeural">云健 · 成年男声，浑厚</option>
+          <option value="zh-CN-YunyangNeural">云扬 · 成年男声，沉稳</option>
+        </select>
+      </label>
+      <div class="row">
+        <label class="field"><span>音高（越低越沉）</span>
+          <input type="number" id="tts-pitch" min="-50" max="20" step="5"></label>
+        <label class="field"><span>语速</span>
+          <input type="number" id="tts-rate" min="-40" max="20" step="2"></label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="tts-try">试听</button>
+        <div></div>
+      </div>
+      <p class="note dim" id="tts-note"></p>
+    </section>
+
+    <section>
+      <h2>天气</h2>
+      <p class="hint">
+        用 Open-Meteo，免费、不需要注册。搜到城市后点一下选中，只有经纬度会被发出去。
+      </p>
+      <label class="field">
+        <span>城市</span>
+        <div class="row">
+          <input type="text" id="city-input" placeholder="比如：宝鸡" spellcheck="false">
+          <button id="city-search">搜索</button>
+        </div>
+      </label>
+      <div class="choices" id="city-list" hidden></div>
+      <p class="note dim" id="city-note"></p>
+    </section>
+
+    <section>
+      <h2>日程</h2>
+      <p class="hint">
+        日程直接读你本机 Cclock（桌面时钟悬浮窗）里的待办，只读不写。
+        在 Cclock 里加的待办，只要带日期且没打勾，牛来就会算进提醒。
+      </p>
+      <label class="field">
+        <span>Cclock 数据文件</span>
+        <div class="row">
+          <input type="text" id="cclock-path" placeholder="自动探测" spellcheck="false">
+          <button id="cclock-pick">选择</button>
+        </div>
+      </label>
+      <label class="field">
+        <span>提前几天开始提醒</span>
+        <input type="number" id="lead-days" min="1" max="30" class="narrow">
+      </label>
+      <div class="row" style="margin-top:10px">
+        <button id="agenda-peek">看看现在读到什么</button>
+        <div></div>
+      </div>
+      <p class="note dim" id="agenda-note"></p>
+    </section>
+
+    <section>
+      <h2>播报时间</h2>
+      <p class="hint">早上报今天，傍晚报明天。到点时牛来会用气泡说出来。</p>
+      <div class="checkline">
+        <input type="checkbox" id="morning-on">
+        <label for="morning-on">早上播报</label>
+        <input type="time" id="morning-time" class="narrow" style="margin-left:auto;flex:0 0 110px">
+      </div>
+      <div class="checkline">
+        <input type="checkbox" id="evening-on">
+        <label for="evening-on">傍晚播报</label>
+        <input type="time" id="evening-time" class="narrow" style="margin-left:auto;flex:0 0 110px">
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="preview-morning">预览早报</button>
+        <button id="preview-evening">预览晚报</button>
+      </div>
+      <pre class="preview" id="preview" hidden></pre>
+    </section>
+
+  </div>
+
+  <footer>
+    <button id="close">关闭</button>
+  </footer>
+
+  <script src="settings.js"></script>
+</body>
+</html>

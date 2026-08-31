@@ -1,8 +1,8 @@
 {
   "name": "niulai",
   "productName": "牛来",
-  "version": "0.1.0",
-  "description": "牛来 —— 会陪你上班的桌面小牛",
+  "version": "1.2.0",
+  "description": "牛来 —— 会陪你上班的桌面小牛，能聊天、报天气、盯日程",
   "author": "AI创赛贯通社",
   "license": "MIT",
   "private": true,
@@ -11,10 +11,14 @@
     "start": "electron .",
     "cut": "python scripts/cut_sprites.py",
     "icon": "python scripts/gen_icon.py",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "dist:msi": "electron-builder --win msi"
   },
   "devDependencies": {
     "electron": "^38.0.0",
     "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
   }
 }

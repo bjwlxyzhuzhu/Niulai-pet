@@ -1,6 +1,18 @@
 appId: com.aichuangsai.niulai
 productName: 牛来
+
+# 可执行文件名走 ASCII。productName 是中文的话，构建出来的就是「牛来.exe」，
+# 而打包链路上的 7za 和 makensis 对非 ASCII 路径不可靠 ——
+# 实测会随机报「文件被另一个进程占用」或「failed opening file」，日志里路径全是乱码。
+# 界面上的程序名、开始菜单快捷方式仍然显示「牛来」，只有磁盘上的文件名是拼音。
+executableName: Niulai
 copyright: Copyright © 2026 AI创赛贯通社
+
+# 压缩安装包前先等主程序解除杀软占用，见该文件里的说明。
+# 必须挂在 afterSign：签名会重写 exe，占用是在那之后才出现的，
+# afterPack 跑得太早，那时文件还是干净的。
+afterPack: ./scripts/after-pack.js
+afterSign: ./scripts/after-pack.js
 
 directories:
   output: release
@@ -24,11 +36,38 @@ extraMetadata:
   main: electron/main.js
 
 win:
+  # 出两个产物：NSIS 安装版 + 免安装单文件。
+  #
+  # 构建前请确认 360 安全卫士 / 360 杀毒已退出。
+  # 它的主动防御会锁住刚写出的构建产物，症状有两种：
+  #   1) electron-builder 自己会说 "output file is locked for writing
+  #      (maybe by virus scanner) => waiting for unlock..." 然后卡住；
+  #   2) makensis 嵌入刚生成的卸载器存根时直接失败：
+  #      File: failed opening file "...__uninstaller.exe"
+  #      —— 这一条没有重试机制，必挂。
+  # 实测退掉 360 之后一次就过。真拦得没办法时，用 npm run dist:msi
+  # 出 MSI 安装包：WiX 那套工具链不产生这个存根，被拦时也能过。
   target:
     - target: nsis
       arch: [x64]
+    - target: portable
+      arch: [x64]
   icon: build/icon.ico
-  artifactName: 牛来-${version}-setup.${ext}
+  # 文件名用 ASCII，和 GitHub Releases 上的命名保持一致
+  artifactName: Niulai-${version}-setup.${ext}
+
+# 备用安装包格式，被杀软拦住时用 npm run dist:msi
+msi:
+  artifactName: Niulai-${version}-setup.${ext}
+  # 不要管理员权限，装到当前用户目录下 —— 和之前定的安装策略一致
+  perMachine: false
+  runAfterFinish: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 牛来
+
+portable:
+  artifactName: Niulai-${version}-portable.${ext}
 
 nsis:
   oneClick: false

@@ -68,9 +68,10 @@ function setExpr(expr, holdMs) {
   }
 }
 
-function bubble(text, ms) {
+function bubble(text, ms, wide) {
   $text.textContent = text;
   $bubble.classList.remove('hidden');
+  $bubble.classList.toggle('wide', !!wide);
   // 重新触发弹出动画
   $text.style.animation = 'none';
   void $text.offsetWidth;
@@ -294,6 +295,12 @@ const hitTest = (function () {
   });
 })();
 
+// 长播报看完了想立刻收掉，点一下气泡就行
+$text.addEventListener('click', () => {
+  clearTimeout(bubbleTimer);
+  $bubble.classList.add('hidden');
+});
+
 /* ---------------- 自动行为 ---------------- */
 
 function scheduleIdle() {
@@ -353,6 +360,18 @@ window.niulai.onCommand((c) => {
     if (state.busy) return;
     const pool = Math.random() < CFG.SNARK_RATE ? window.LINES.snark : window.LINES.idle;
     say(pick(pool));
+  } else if (c.type === 'brief') {
+    // 早晚播报。自动触发的受免打扰约束，从菜单点出来的不受
+    if (state.busy) return;
+    if (!c.manual && muted()) return;
+    bubble(c.text, 22000, true);
+    setExpr(c.expr || 'normal', 22000);
+  } else if (c.type === 'talking') {
+    // 聊天窗口在放语音，让牛来轻轻晃两下，声音才有着落
+    $pet.classList.toggle('talking', !!c.on);
+  } else if (c.type === 'expr') {
+    // 聊天回答带回来的表情
+    if (!state.busy) setExpr(c.value, 8000);
   } else if (c.type === 'mama') {
     // 菜单点播：走的是和狂点完全相同的那套演出
     if (!state.busy) rage();

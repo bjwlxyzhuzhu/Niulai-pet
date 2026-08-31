@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; img-src 'self' data:; media-src data:; style-src 'self'; script-src 'self';">
+  <title>和牛来聊聊</title>
+  <link rel="stylesheet" href="panel.css">
+  <link rel="stylesheet" href="chat.css">
+</head>
+<body>
+  <div class="bar">
+    <img src="../assets/sprites/face_normal.png" alt="">
+    <strong>牛来</strong>
+    <span class="spacer"></span>
+    <button id="speak" title="朗读开关">🔊 朗读</button>
+    <button id="clear">清空</button>
+  </div>
+
+  <div id="log"></div>
+
+  <div class="composer">
+    <textarea id="input" placeholder="说点什么…（Enter 发送，Shift+Enter 换行）" rows="1"></textarea>
+    <button id="send" class="primary">发送</button>
+  </div>
+
+  <script src="chat.js"></script>
+</body>
+</html>

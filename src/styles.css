@@ -62,6 +62,15 @@ body.bodymode #bubble { bottom: 268px; }
 
 #bubble.hidden { display: none; }
 
+/* 早晚播报是多行的，给它更宽、保留换行、太长可滚 */
+#bubble.wide #bubble-text {
+  max-width: 348px;
+  text-align: left;
+  white-space: pre-line;
+  max-height: 210px;
+  overflow-y: auto;
+}
+
 @keyframes pop {
   from { opacity: 0; transform: translateY(6px) scale(0.86); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -127,6 +136,13 @@ body.bodymode #pet-img { height: 260px; }
   50%  { transform: translateX(-50%) translate(-3px, 2px) rotate(-2deg) scale(1.08); }
   75%  { transform: translateX(-50%) translate(3px, -2px) rotate(2deg)  scale(1.06); }
   100% { transform: translateX(-50%) translate(-4px, 0)  rotate(-3deg) scale(1.06); }
+}
+
+/* 说话：幅度很小的点头，配合聊天窗口的语音 */
+#pet.talking { animation: talking 0.42s ease-in-out infinite; }
+@keyframes talking {
+  0%, 100% { transform: translateX(-50%) translateY(0)      scale(1, 1); }
+  50%      { transform: translateX(-50%) translateY(-2.5px) scale(0.995, 1.008); }
 }
 
 /* 委屈：背过身去（水平翻转 + 缩一点） */

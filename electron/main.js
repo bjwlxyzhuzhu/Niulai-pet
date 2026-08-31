@@ -1,9 +1,15 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, Tray, Menu, screen, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, screen, nativeImage, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { Store } = require('./store');
 const { startWinWatch } = require('./winwatch');
+const weather = require('./weather');
+const agenda = require('./agenda');
+const briefing = require('./briefing');
+const deepseek = require('./deepseek');
+const secrets = require('./secrets');
+const tts = require('./tts');
 
 // 音效可能由定时器或合成事件触发，不一定挂在真实用户手势上，
 // 不放开自动播放策略的话 audio.play() 会被 Chromium 拒绝。
@@ -22,6 +28,8 @@ let tray = null;
 let store = null;
 let stopWatch = null;
 let lastForeground = { proc: '', full: false };
+const panels = { settings: null, chat: null };
+let chatAbort = null;
 
 function defaultPosition() {
   const wa = screen.getPrimaryDisplay().workArea;
@@ -148,6 +156,12 @@ function buildMenu() {
     },
     { label: '换个心情', click: () => send('command', { type: 'mood' }) },
     { label: '叫妈妈', click: () => send('command', { type: 'mama' }) },
+    { type: 'separator' },
+    { label: '聊聊…', click: () => openPanel('chat') },
+    { label: '明天怎么安排', click: () => fireBriefing('evening', true) },
+    { label: '今天怎么安排', click: () => fireBriefing('morning', true) },
+    { label: '设置…', click: () => openPanel('settings') },
+    { type: 'separator' },
     {
       label: quiet ? '结束安静（还剩 ' + Math.ceil((quietUntil - Date.now()) / 60000) + ' 分钟）' : '安静一小时',
       click: () => {
@@ -199,9 +213,22 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     store = new Store(app.getPath('userData'), {
       pos: null, display: 'bust', quietUntil: 0,
+      apiKey: null,                              // { enc, v } —— 见 secrets.js
+      model: 'deepseek-chat',
+      city: null,                                // { name, lat, lon }
+      cclockPath: '',                            // 空则自动探测
+      leadDays: 7,
+      // 只朗读聊天回复。早晚播报刻意不读 —— 那里面有你的日程，不外发。
+      tts: { on: true, voice: 'zh-CN-YunxiaNeural', pitch: -20, rate: -8 },
+      morning: { on: true, time: '09:00' },
+      evening: { on: true, time: '18:00' },
+      lastBrief: {},                             // 记住每种播报今天报过没有
+      chat: [],
     });
     createWindow();
     createTray();
+    setInterval(checkBriefings, 30000);
+    catchUpBriefings();
 
     stopWatch = startWinWatch((d) => {
       const changed = d.proc !== lastForeground.proc || d.full !== lastForeground.full;
@@ -248,3 +275,256 @@ ipcMain.handle('list-sprites', () => {
   try { return fs.readdirSync(SPRITE_DIR).filter((f) => f.endsWith('.png')); }
   catch (_) { return []; }
 });
+
+
+/* ==================== 设置 / 聊天 面板 ==================== */
+
+function openPanel(kind) {
+  const exist = panels[kind];
+  if (exist && !exist.isDestroyed()) { exist.show(); exist.focus(); return exist; }
+
+  const w = new BrowserWindow({
+    width: kind === 'chat' ? 430 : 545,
+    height: kind === 'chat' ? 590 : 680,
+    minWidth: 380,
+    minHeight: 420,
+    title: kind === 'chat' ? '和牛来聊聊' : '牛来 · 设置',
+    backgroundColor: '#FBF7F2',
+    autoHideMenuBar: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload-panel.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  w.setMenuBarVisibility(false);
+  w.loadFile(path.join(ROOT, 'src', kind + '.html'));
+  w.once('ready-to-show', () => w.show());
+  w.on('closed', () => { panels[kind] = null; });
+  panels[kind] = w;
+  return w;
+}
+
+ipcMain.on('panel:close', (e) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  if (w && !w.isDestroyed()) w.close();
+});
+
+/* ==================== 早晚播报 ==================== */
+
+function ymd(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function hhmm(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function currentConfig() {
+  return {
+    city: store.get('city'),
+    cclockPath: store.get('cclockPath'),
+    leadDays: store.get('leadDays'),
+  };
+}
+
+async function fireBriefing(kind, manual) {
+  if (!win || win.isDestroyed()) return;
+  try {
+    const b = await briefing.build(kind, currentConfig(), app.getPath('appData'));
+    // 手动点菜单时无视免打扰 —— 是你自己要看的
+    send('command', { type: 'brief', text: b.text, expr: b.expr, manual: !!manual });
+  } catch (e) {
+    send('command', { type: 'brief', text: '播报出岔子了：' + e.message, expr: 'sad', manual: !!manual });
+  }
+}
+
+/**
+ * 开机补报：到点那会儿人可能还没开电脑，定时器只在整分钟那一刻匹配，
+ * 于是 9:30 才开机的话早报就永远不响 —— 对「早晚各一次」来说等于时灵时不灵。
+ * 所以启动时把今天已经错过、且错过不超过 4 小时的那一档补上一次。
+ * 卡 4 小时是为了别在晚上十点收到早上九点的早报；
+ * 同时错过两档时只补更近的那一档，免得两条播报撞在一起。
+ */
+function catchUpBriefings() {
+  const now = new Date();
+  const today = ymd(now);
+  const last = store.get('lastBrief') || {};
+  let best = null;
+
+  for (const kind of ['morning', 'evening']) {
+    const c = store.get(kind);
+    if (!c || !c.on || last[kind] === today) continue;
+    const [h, m] = String(c.time || '').split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) continue;
+    const slot = new Date(now);
+    slot.setHours(h, m, 0, 0);
+    const lateBy = now - slot;
+    if (lateBy <= 0 || lateBy > 4 * 3600 * 1000) continue;
+    if (!best || lateBy < best.lateBy) best = { kind, lateBy };
+  }
+
+  if (!best) return;
+  last[best.kind] = today;
+  store.set('lastBrief', last);
+  setTimeout(() => fireBriefing(best.kind, false), 6000);   // 等牛来先把自己画出来
+}
+
+// 每 30 秒查一次；间隔小于一分钟才不会漏掉整分钟的那一刻
+function checkBriefings() {
+  if (!store) return;
+  const now = new Date();
+  const cur = hhmm(now);
+  const today = ymd(now);
+  const last = store.get('lastBrief') || {};
+  for (const kind of ['morning', 'evening']) {
+    const c = store.get(kind);
+    if (!c || !c.on || c.time !== cur) continue;
+    if (last[kind] === today) continue;      // 今天这一档报过了
+    last[kind] = today;
+    store.set('lastBrief', last);
+    fireBriefing(kind, false);
+  }
+}
+
+/* ==================== 设置面板的 IPC ==================== */
+
+ipcMain.handle('cfg:get', () => {
+  const key = secrets.open(store.get('apiKey'));
+  return {
+    hasKey: !!key,
+    keyMask: secrets.mask(key),        // 只回遮罩，完整 key 永远不出主进程
+    encAvailable: secrets.available(),
+    model: store.get('model'),
+    tts: store.get('tts'),
+    city: store.get('city'),
+    cclockPath: store.get('cclockPath'),
+    cclockDetected: agenda.detectPath(app.getPath('appData')) || '',
+    leadDays: store.get('leadDays'),
+    morning: store.get('morning'),
+    evening: store.get('evening'),
+  };
+});
+
+ipcMain.handle('cfg:save', (_e, patch) => {
+  for (const [k, v] of Object.entries(patch || {})) store.set(k, v);
+  return true;
+});
+
+ipcMain.handle('cfg:set-key', (_e, key) => {
+  store.set('apiKey', secrets.seal(String(key || '').trim()));
+  return { mask: secrets.mask(String(key || '').trim()) };
+});
+
+ipcMain.handle('cfg:clear-key', () => { store.set('apiKey', null); return true; });
+
+ipcMain.handle('cfg:test-key', async () => {
+  const key = secrets.open(store.get('apiKey'));
+  if (!key) return { ok: false, error: '还没保存 key。' };
+  try {
+    await deepseek.test(key, store.get('model'));
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('cfg:search-city', async (_e, name) => {
+  try {
+    return { ok: true, list: await weather.searchCity(String(name || '')) };
+  } catch (e) {
+    return { ok: false, error: '搜不动，检查一下网络：' + e.message };
+  }
+});
+
+ipcMain.handle('cfg:pick-cclock', async (e) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  const r = await dialog.showOpenDialog(w, {
+    title: '选择 Cclock 的 data.json',
+    defaultPath: path.join(app.getPath('appData'), 'Cclock'),
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['openFile'],
+  });
+  return { path: r.canceled ? '' : r.filePaths[0] };
+});
+
+ipcMain.handle('cfg:peek-agenda', () => {
+  const cfg = currentConfig();
+  const file = cfg.cclockPath || agenda.detectPath(app.getPath('appData'));
+  const r = agenda.upcoming(file, cfg.leadDays);
+  return {
+    ok: r.ok,
+    reason: r.reason,
+    items: (r.items || []).map((t) => ({ line: agenda.line(t) })),
+  };
+});
+
+ipcMain.handle('cfg:preview-briefing', async (_e, kind) => {
+  try {
+    const b = await briefing.build(kind === 'morning' ? 'morning' : 'evening',
+      currentConfig(), app.getPath('appData'));
+    return { text: b.text };
+  } catch (e) {
+    return { text: '出错了：' + e.message };
+  }
+});
+
+/* ==================== 聊天的 IPC ==================== */
+
+ipcMain.handle('chat:history', () => store.get('chat') || []);
+ipcMain.handle('chat:clear', () => { store.set('chat', []); return true; });
+ipcMain.on('chat:abort', () => { if (chatAbort) chatAbort.abort(); });
+
+ipcMain.handle('chat:send', async (e, text) => {
+  const key = secrets.open(store.get('apiKey'));
+  if (!key) return { ok: false, error: '还没填 DeepSeek 的 API key —— 右键牛来 →「设置…」里填。' };
+
+  const history = store.get('chat') || [];
+  const wc = e.sender;
+  chatAbort = new AbortController();
+
+  try {
+    const full = await deepseek.chat({
+      apiKey: key,
+      model: store.get('model'),
+      history,
+      message: String(text || ''),
+      onDelta: (d) => { if (!wc.isDestroyed()) wc.send('chat:delta', d); },
+      signal: chatAbort.signal,
+    });
+    const { text: clean, expr } = deepseek.extractExpr(full);
+    // 只留最近 40 条，免得配置文件无限长、上下文无限贵
+    store.set('chat', history.concat(
+      [{ role: 'user', content: String(text || '') }, { role: 'assistant', content: clean }]
+    ).slice(-40));
+    if (expr) send('command', { type: 'expr', value: expr });
+    return { ok: true, text: clean };
+  } catch (err) {
+    return { ok: false, error: err.name === 'AbortError' ? '中断了。' : err.message };
+  } finally {
+    chatAbort = null;
+  }
+});
+
+
+/* ==================== 语音合成的 IPC ==================== */
+
+ipcMain.handle('tts:config', () => store.get('tts'));
+
+ipcMain.handle('tts:speak', async (_e, { text, override }) => {
+  const cfg = Object.assign({}, store.get('tts'), override || {});
+  // 试听时 override 里带着界面上还没保存的参数，这时不看开关
+  if (!cfg.on && !override) return { ok: false, error: '朗读已关闭' };
+  try {
+    const buf = await tts.speak(text, cfg);
+    return { ok: true, b64: buf.toString('base64') };
+  } catch (err) {
+    // 接口是微软非公开的，挂了就安静退回只显示文字，别让聊天卡住
+    return { ok: false, error: err.message };
+  }
+});
+
+// 牛来说话时轻轻晃一下，让声音有个着落
+ipcMain.on('tts:playing', (_e, on) => send('command', { type: 'talking', on: !!on }));
