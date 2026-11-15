@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-latest   # 别写死版本号：macos-14 已被 GitHub 下线过一次
             target: --mac
             files: release/*.dmg
           - os: windows-latest
