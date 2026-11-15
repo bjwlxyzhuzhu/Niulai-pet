@@ -66,6 +66,27 @@ msi:
   createStartMenuShortcut: true
   shortcutName: 牛来
 
+# macOS：在 GitHub Actions 的 macOS 机器上构建（Windows 上做不了 dmg），见 .github/workflows/release.yml
+mac:
+  category: public.app-category.entertainment
+  icon: build/icon.png
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  artifactName: Niulai-${version}-mac-${arch}.${ext}
+  # 没有 Apple 开发者证书：关掉 electron-builder 的签名，改由 scripts/after-pack.js
+  # 做 ad-hoc 签名。完全不签的话 Apple 芯片的机器上会直接报「已损坏，无法打开」；
+  # ad-hoc 之后变成可以在「隐私与安全性」里手动放行的「无法验证开发者」。
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  extendInfo:
+    # 不进程序坞、不占菜单栏，只留右上角的菜单栏图标 —— 等同 Windows 的 skipTaskbar
+    LSUIElement: true
+
+dmg:
+  title: 牛来 ${version}
+
 portable:
   artifactName: Niulai-${version}-portable.${ext}
 

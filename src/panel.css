@@ -29,7 +29,7 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.6 "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  font: 14px/1.6 "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
   height: 100vh;
   display: flex;
   flex-direction: column;

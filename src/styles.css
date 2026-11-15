@@ -8,7 +8,7 @@ html, body {
   user-select: none;
   -webkit-user-select: none;
   cursor: default;
-  font-family: "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
 }
 
 /* 舞台整体不吃鼠标事件，只有气泡和牛本体吃 —— 窗口四周的空白区域点下去会落到后面的窗口 */

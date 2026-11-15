@@ -37,4 +37,10 @@ function startWinWatch(onUpdate) {
   return () => { stopped = true; if (child) try { child.kill(); } catch (_) {} };
 }
 
-module.exports = { startWinWatch };
+// macOS 没有 PowerShell，换成系统命令实现的同接口版本（见 macwatch.js）
+function startWatch(onUpdate) {
+  if (process.platform === 'darwin') return require('./macwatch').startMacWatch(onUpdate);
+  return startWinWatch(onUpdate);
+}
+
+module.exports = { startWinWatch: startWatch };

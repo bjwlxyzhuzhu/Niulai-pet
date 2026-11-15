@@ -3,7 +3,7 @@
 一头住在屏幕右下角的橙色小牛。会陪你上班，会看你在用什么软件搭话，会提醒你别久坐，
 被戳会有反应，被狂点会崩溃地喊"妈妈"。
 
-Windows 10 / 11，64 位。
+Windows 10 / 11（64 位）· macOS 12 及以上（Apple 芯片与 Intel）。
 
 ---
 
@@ -35,12 +35,14 @@ Windows 10 / 11，64 位。
 
 ## 安装与使用
 
-两个版本，按需要挑一个：
+所有安装包都在 [Releases](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/latest) 页面，附 SHA256 校验值。
+
+### Windows
 
 | 文件 | 说明 |
 | --- | --- |
-| [`Niulai-1.2.0-setup.exe`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.0/Niulai-1.2.0-setup.exe) | **安装版**。双击安装，可以改安装路径，自动建开始菜单和桌面快捷方式，能在「应用和功能」里正常卸载。不需要管理员权限，装在当前用户目录下。 |
-| [`Niulai-1.2.0-portable.exe`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.0/Niulai-1.2.0-portable.exe) | 免安装单文件。双击就跑，不写注册表、不留安装记录，不想要了直接删掉。首次启动要先解压到临时目录，比安装版慢几秒。 |
+| [`Niulai-1.2.1-setup.exe`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.1/Niulai-1.2.1-setup.exe) | **安装版**。双击安装，可以改安装路径，自动建开始菜单和桌面快捷方式，能在「应用和功能」里正常卸载。不需要管理员权限，装在当前用户目录下。 |
+| [`Niulai-1.2.1-portable.exe`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.1/Niulai-1.2.1-portable.exe) | 免安装单文件。双击就跑，不写注册表、不留安装记录，不想要了直接删掉。首次启动要先解压到临时目录，比安装版慢几秒。 |
 
 > 卸载不会删掉配置。想彻底还原，把 `%APPDATA%\牛来\` 这个文件夹一起删掉。
 
@@ -58,6 +60,34 @@ Windows 10 / 11，64 位。
 
 **配置存在哪**：`%APPDATA%\牛来\niulai-config.json`，
 里面是窗口位置、音色、城市和 API key 的密文。删掉 exe 不会清掉它。
+
+### macOS
+
+| 文件 | 适用 |
+| --- | --- |
+| [`Niulai-1.2.1-mac-arm64.dmg`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.1/Niulai-1.2.1-mac-arm64.dmg) | Apple 芯片（M1 / M2 / M3 / M4） |
+| [`Niulai-1.2.1-mac-x64.dmg`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.1/Niulai-1.2.1-mac-x64.dmg) | Intel 芯片 |
+
+不确定是哪种：左上角苹果菜单 →「关于本机」，「芯片」一栏写 Apple M 开头的选 arm64，写 Intel 的选 x64。
+
+**第一次打开会被系统拦下，这是正常的。** 安装包没有 Apple 开发者证书（年费 99 美元），
+只做了 ad-hoc 签名，系统无法验证开发者身份：
+
+1. 打开 dmg，把「牛来」拖进「应用程序」；
+2. 双击打开，提示无法验证开发者 → 点「完成」；
+3. 打开「系统设置 → 隐私与安全性」，拉到最底下，点「仍要打开」，再确认一次。
+
+只需要放行这一次。若仍提示「已损坏」，在终端执行
+`xattr -dr com.apple.quarantine /Applications/牛来.app` 后再打开。
+
+Mac 版的几处不同：
+
+- **没有程序坞图标**，菜单栏右上角有个牛头，功能和 Windows 的托盘菜单一样；
+- 前台应用识别用的是系统自带的 `lsappinfo`，**不需要授予任何权限**；
+- **不做全屏免打扰**（macOS 的全屏是独立桌面空间，判断不可靠），需要时用「安静一小时」；
+- 牛来会跟着你切换桌面空间；
+- 配置在 `~/Library/Application Support/牛来/`，日程读的是
+  `~/Library/Application Support/Cclock/data.json`（装 Mac 版 Cclock 即可）。
 
 ## 它会做什么
 
@@ -252,6 +282,13 @@ Error in macro installApplicationFiles on macroline 91
 渲染层用到的图片和音频不受影响 —— 那些走的是 Electron 自己的文件协议。
 
 ## 版本
+
+### 1.2.1
+
+- **新增 macOS 版**（Apple 芯片 / Intel 两个 dmg），由 GitHub Actions 在云端 macOS 机器上构建
+- Mac 前台应用识别改用系统自带的 `lsappinfo` + `ioreg`，无需任何授权
+- Windows 安装包也改由云端构建，不再受本机安全软件锁文件影响
+- 界面字体加入苹方，Mac 上不再回退成默认字体
 
 ### 1.2.0
 

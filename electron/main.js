@@ -74,6 +74,10 @@ function createWindow() {
   });
 
   win.setAlwaysOnTop(true, 'screen-saver');
+  // macOS：切换桌面空间、进入别的全屏应用时牛来也跟着，不被留在原来那个空间里
+  if (process.platform === 'darwin') {
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
   // 窗口是个 380x420 的实心矩形，不穿透的话会吞掉右下角一整块的鼠标点击
   // （CSS 的 pointer-events 只管网页内部，管不到操作系统这一层）。
   // 默认全窗口穿透，forward:true 让渲染层仍能收到 mousemove 做命中判定；
@@ -137,7 +141,9 @@ function trayImage() {
   const p = path.join(ROOT, 'assets', 'tray.png');
   if (fs.existsSync(p)) {
     const img = nativeImage.createFromPath(p);
-    if (!img.isEmpty()) return img.resize({ width: 16, height: 16 });
+    // macOS 菜单栏图标按 18pt 画才不显小；Windows 托盘是 16px
+    const px = process.platform === 'darwin' ? 18 : 16;
+    if (!img.isEmpty()) return img.resize({ width: px, height: px });
   }
   return nativeImage.createEmpty();
 }
@@ -211,6 +217,15 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => { if (win) win.showInactive(); });
 
   app.whenReady().then(() => {
+    // macOS 上没有应用菜单的话，输入框里 ⌘C / ⌘V / ⌘A 全部失效 ——
+    // 设置里粘贴 API key、聊天窗口里粘贴文字都靠它。菜单栏本身不显示（LSUIElement）。
+    if (process.platform === 'darwin') {
+      Menu.setApplicationMenu(Menu.buildFromTemplate([
+        { role: 'appMenu' },
+        { role: 'editMenu' },
+        { role: 'windowMenu' },
+      ]));
+    }
     store = new Store(app.getPath('userData'), {
       pos: null, display: 'bust', quietUntil: 0,
       apiKey: null,                              // { enc, v } —— 见 secrets.js
@@ -281,6 +296,8 @@ ipcMain.handle('list-sprites', () => {
 
 function openPanel(kind) {
   const exist = panels[kind];
+  // Mac 版不在程序坞里（LSUIElement），新窗口默认不会跑到最前面，得显式抢一下焦点
+  if (process.platform === 'darwin') app.focus({ steal: true });
   if (exist && !exist.isDestroyed()) { exist.show(); exist.focus(); return exist; }
 
   const w = new BrowserWindow({

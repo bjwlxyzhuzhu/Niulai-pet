@@ -1,0 +1,133 @@
+# 推送 v* 标签时，在 GitHub 的云端机器上构建安装包并发布 Release：
+#   · macOS 机器出 .dmg（Apple 芯片 / Intel 各一个）—— Windows 上做不了 dmg
+#   · Windows 机器出 setup.exe + portable.exe —— 顺带避开本机 360 锁文件的问题
+#
+# 用法：改 package.json 的 version → 提交 → git tag v<版本> → git push --tags
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: --mac
+            files: release/*.dmg
+          - os: windows-latest
+            target: --win
+            files: release/*.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # 仓库里的 .npmrc 指向国内镜像，GitHub 的机器在海外，直连官方源更快更稳
+      - name: 去掉国内镜像配置
+        run: rm -f .npmrc
+
+      - run: npm ci
+
+      - name: 打包
+        run: |
+          set -o pipefail
+          npx electron-builder ${{ matrix.target }} --publish never 2>&1 | tee build.log
+
+      - name: macOS 签名自检
+        if: runner.os == 'macOS'
+        run: |
+          for app in release/mac*/*.app; do
+            echo "== $app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+            codesign -dv "$app" 2>&1 | grep -E "Identifier|Format|Signature"
+            /usr/libexec/PlistBuddy -c "Print :LSUIElement" "$app/Contents/Info.plist"
+          done
+          ls -la release/*.dmg
+
+      # 失败时把日志尾部写成注解，不登录也能在 Actions 页面（及 API）看到原因
+      - name: 失败时输出日志摘要
+        if: failure()
+        run: |
+          [ -f build.log ] || exit 0
+          msg=$(tail -n 60 build.log | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=build.log 末尾::${msg}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ runner.os }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 生成校验值与发布说明
+        run: |
+          cd dist && sha256sum * > SHA256SUMS.txt && cd ..
+          ver="${GITHUB_REF_NAME#v}"
+          cat > notes.md <<EOF
+          ## 下载
+
+          | 系统 | 文件 |
+          | --- | --- |
+          | Windows 安装版 | \`Niulai-${ver}-setup.exe\` |
+          | Windows 免安装 | \`Niulai-${ver}-portable.exe\` |
+          | macOS · Apple 芯片（M1/M2/M3/M4） | \`Niulai-${ver}-mac-arm64.dmg\` |
+          | macOS · Intel | \`Niulai-${ver}-mac-x64.dmg\` |
+
+          不确定自己的 Mac 是哪种：左上角  → 关于本机，「芯片」一栏写 Apple M 开头的选 arm64，写 Intel 的选 x64。
+
+          ## macOS 首次打开
+
+          安装包没有 Apple 开发者证书签名，第一次打开会被系统拦下，属正常现象：
+
+          1. 打开 dmg，把「牛来」拖进「应用程序」；
+          2. 双击打开，系统提示无法验证开发者 → 点「完成」；
+          3. 打开「系统设置 → 隐私与安全性」，拉到底部，点「仍要打开」，再确认一次。
+
+          之后就能正常打开。牛来没有程序坞图标，启动后看屏幕右下角和右上角菜单栏。
+
+          ## Windows 安装时的安全软件提示
+
+          安装包未购买代码签名证书，部分安全软件会就释放 DLL 弹出行为提示。
+          8 个 DLL 均为 Electron/Chromium 官方运行时组件，可用下方 SHA256 自行核对。
+
+          ## 校验值（SHA256）
+
+          \`\`\`
+          $(cat dist/SHA256SUMS.txt)
+          \`\`\`
+          EOF
+          sed -i 's/^          //' notes.md
+
+      - name: 发布
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "牛来 ${GITHUB_REF_NAME}" \
+            --notes-file notes.md

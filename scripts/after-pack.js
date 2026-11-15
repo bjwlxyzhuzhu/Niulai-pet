@@ -45,7 +45,21 @@ function isFree(p) {
   }
 }
 
+/* macOS：ad-hoc 签名。
+   electron-builder 改写了 Info.plist、换了可执行文件名，Electron 原带的签名已经失效；
+   没有开发者证书时它会直接跳过签名，Apple 芯片上的系统会把这样的 app 判成「已损坏」。
+   用 "-" 作身份做一次 ad-hoc 签名就能变成「无法验证开发者」，用户可以手动放行。 */
+function adhocSignMac(context) {
+  const { execFileSync } = require('child_process');
+  const app = path.join(context.appOutDir, context.packager.appInfo.productFilename + '.app');
+  if (!fs.existsSync(app)) return;
+  execFileSync('codesign', ['--force', '--deep', '--sign', '-', app], { stdio: 'inherit' });
+  execFileSync('codesign', ['--verify', '--deep', '--strict', app], { stdio: 'inherit' });
+  console.log('  • 已对 ' + path.basename(app) + ' 做 ad-hoc 签名并校验通过');
+}
+
 exports.default = async function afterPack(context) {
+  if (context.electronPlatformName === 'darwin') return adhocSignMac(context);
   const name = (context.packager.executableName || context.packager.appInfo.productFilename) + '.exe';
   const exe = path.join(context.appOutDir, name);
   if (!fs.existsSync(exe)) return;
