@@ -22,7 +22,14 @@ async function launch(extra, dir) {
   async function page(match) {
     for (let i = 0; i < 60; i++) {
       const t = (await targets()).find((x) => x.url.includes(match));
-      if (t) return attach(t);
+      if (t) {
+        const p = await attach(t);
+        for (let k = 0; k < 40; k++) {   // 等页面真正加载完，慢机器上窗口会先于脚本出现
+          try { if (await p.ev(`document.readyState === 'complete' && location.href.includes('${match}')`)) return p; } catch { /* 上下文切换中 */ }
+          await sleep(500);
+        }
+        throw new Error('页面没加载完: ' + match);
+      }
       await sleep(500);
     }
     throw new Error('窗口没出现: ' + match + ' 现有: ' + (await targets()).map((t) => t.url).join(' '));

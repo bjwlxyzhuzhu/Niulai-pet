@@ -41,8 +41,8 @@ Windows 10 / 11（64 位）· macOS 12 及以上（Apple 芯片与 Intel）。
 
 | 文件 | 说明 |
 | --- | --- |
-| [`Niulai-1.2.1-setup.exe`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.1/Niulai-1.2.1-setup.exe) | **安装版**。双击安装，可以改安装路径，自动建开始菜单和桌面快捷方式，能在「应用和功能」里正常卸载。不需要管理员权限，装在当前用户目录下。 |
-| [`Niulai-1.2.1-portable.exe`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.1/Niulai-1.2.1-portable.exe) | 免安装单文件。双击就跑，不写注册表、不留安装记录，不想要了直接删掉。首次启动要先解压到临时目录，比安装版慢几秒。 |
+| [`Niulai-1.2.2-setup.exe`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.2/Niulai-1.2.2-setup.exe) | **安装版**。双击安装，可以改安装路径，自动建开始菜单和桌面快捷方式，能在「应用和功能」里正常卸载。不需要管理员权限，装在当前用户目录下。 |
+| [`Niulai-1.2.2-portable.exe`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.2/Niulai-1.2.2-portable.exe) | 免安装单文件。双击就跑，不写注册表、不留安装记录，不想要了直接删掉。首次启动要先解压到临时目录，比安装版慢几秒。 |
 
 > 卸载不会删掉配置。想彻底还原，把 `%APPDATA%\牛来\` 这个文件夹一起删掉。
 
@@ -65,20 +65,20 @@ Windows 10 / 11（64 位）· macOS 12 及以上（Apple 芯片与 Intel）。
 
 | 文件 | 适用 |
 | --- | --- |
-| [`Niulai-1.2.1-mac-arm64.dmg`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.1/Niulai-1.2.1-mac-arm64.dmg) | Apple 芯片（M1 / M2 / M3 / M4） |
-| [`Niulai-1.2.1-mac-x64.dmg`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.1/Niulai-1.2.1-mac-x64.dmg) | Intel 芯片 |
+| [`Niulai-1.2.2-mac-arm64.dmg`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.2/Niulai-1.2.2-mac-arm64.dmg) | Apple 芯片（M1 / M2 / M3 / M4） |
+| [`Niulai-1.2.2-mac-x64.dmg`](https://github.com/bjwlxyzhuzhu/Niulai-pet/releases/download/v1.2.2/Niulai-1.2.2-mac-x64.dmg) | Intel 芯片 |
 
 不确定是哪种：左上角苹果菜单 →「关于本机」，「芯片」一栏写 Apple M 开头的选 arm64，写 Intel 的选 x64。
 
 **第一次打开会被系统拦下，这是正常的。** 安装包没有 Apple 开发者证书（年费 99 美元），
 只做了 ad-hoc 签名，系统无法验证开发者身份：
 
-1. 打开 dmg，把「牛来」拖进「应用程序」；
+1. 打开 dmg，把 Niulai 拖进「应用程序」；
 2. 双击打开，提示无法验证开发者 → 点「完成」；
 3. 打开「系统设置 → 隐私与安全性」，拉到最底下，点「仍要打开」，再确认一次。
 
 只需要放行这一次。若仍提示「已损坏」，在终端执行
-`xattr -dr com.apple.quarantine /Applications/牛来.app` 后再打开。
+`xattr -dr com.apple.quarantine /Applications/Niulai.app` 后再打开。
 
 Mac 版的几处不同：
 
@@ -140,6 +140,8 @@ Cclock 的待办结构里没有「提前几天准备」这样的字段，所以�
 对话历史保留最近 40 条，存在本机配置里，聊天窗口里可以随时清空。
 
 ## 牛来的声音
+
+> 2026 年 11 月起 Edge 朗读接口拒绝非 Edge 客户端，本节所述音色多半不可用；程序会自动改用系统自带中文语音，没有则只显示文字。
 
 聊天窗口里的回复会念出来，用微软 Edge「朗读」背后的免费接口，不需要注册也不要 key。
 
@@ -282,6 +284,14 @@ Error in macro installApplicationFiles on macroline 91
 渲染层用到的图片和音频不受影响 —— 那些走的是 Electron 自己的文件协议。
 
 ## 版本
+
+### 1.2.2
+
+- 修复素材：口鼻、眼白被误抠出的小洞
+- 双击跳舞改用跳舞的全身图
+- 从菜单退出时一并结束前台监测进程
+- Edge 朗读已被微软收紧（403），连不上时改用系统自带中文语音，都没有则只显示文字
+- 新增端到端测试，Windows 与 macOS 安装包测试通过后才会发布
 
 ### 1.2.1
 
