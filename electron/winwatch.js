@@ -15,7 +15,7 @@ function startWinWatch(onUpdate) {
   function launch() {
     if (stopped) return;
     child = spawn('powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script],
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, '-ParentPid', String(process.pid)],
       { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
 
     child.stdout.setEncoding('utf8');

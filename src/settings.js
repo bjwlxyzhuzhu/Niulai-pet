@@ -96,7 +96,11 @@ $('tts-try').addEventListener('click', async () => {
   // 试听用界面上当前的值，不必先保存
   const r = await P.speak('哞——我是牛来。又加班啊，我陪你。', ttsPatch());
   btn.disabled = false;
-  if (!r.ok) { note($('tts-note'), '出不了声：' + r.error, 'bad'); return; }
+  if (!r.ok) {
+    const ok = await window.localSpeak('哞——我是牛来。又加班啊，我陪你。');
+    note($('tts-note'), ok ? 'Edge 朗读连不上，正在用系统自带语音。' : 'Edge 朗读连不上，系统也没装中文语音，暂时只能显示文字。', ok ? 'ok' : 'bad');
+    return;
+  }
   note($('tts-note'), '正在放…', 'ok');
   try {
     if (trying) trying.pause();

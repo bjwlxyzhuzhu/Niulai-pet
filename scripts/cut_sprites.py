@@ -96,6 +96,32 @@ def connected_to_border(mask):
     return canvas.crop((1, 1, w + 1, h + 1)).point(lambda v: 255 if v == 128 else 0)
 
 
+def enclosed_gaps(near, outside, dist, min_area=90, max_median=8):
+    """被身体围住的真背景（两腿之间、举手的臂弯）。
+
+    口鼻高光和眼白也会落进 near，但它们要么很小，要么颜色偏离背景较远；
+    真缝隙面积大且颜色几乎就是背景色（实测中位差 2~7，误伤多在 9 以上）。
+    """
+    w, h = near.size
+    n, o, d = near.tobytes(), outside.tobytes(), dist.tobytes()
+    seen, out = bytearray(w * h), bytearray(w * h)
+    for s in range(w * h):
+        if seen[s] or not n[s] or o[s]:
+            continue
+        seen[s] = 1
+        comp = [s]
+        for p in comp:
+            x = p % w
+            for t, ok in ((p - 1, x > 0), (p + 1, x < w - 1), (p - w, p >= w), (p + w, p < w * (h - 1))):
+                if ok and n[t] and not o[t] and not seen[t]:
+                    seen[t] = 1
+                    comp.append(t)
+        if len(comp) >= min_area and sorted(d[p] for p in comp)[len(comp) // 2] <= max_median:
+            for p in comp:
+                out[p] = 255
+    return Image.frombytes('L', (w, h), bytes(out))
+
+
 def build_alpha(img, bg, tol_in, feather, edge, shadow_chroma, shadow_lift):
     """返回 alpha 通道（L 模式）：0=背景，255=主体，中间=边缘羽化。"""
     dist = distance_map(img, bg)
@@ -111,12 +137,12 @@ def build_alpha(img, bg, tol_in, feather, edge, shadow_chroma, shadow_lift):
     candidate = ImageChops.lighter(near, shadow)
 
     # 2) 分两种情况定背景：
-    #    · 颜色确实等于背景色的（near），无条件透明 —— 否则两腿之间那块被围住的
+    #    · 颜色几乎就是背景色、且成片的（enclosed_gaps），透明 —— 否则两腿之间那块被围住的
     #      背景会留成白色三角；
     #    · 靠"近中性灰"猜出来的地面投影，必须与画面外部连通才算，
     #      免得把角色身上灰紫色的蹄子、鼻头一起抹掉。
     outside = connected_to_border(candidate)
-    bg_mask = ImageChops.lighter(near, outside)
+    bg_mask = ImageChops.lighter(outside, enclosed_gaps(near, outside, dist))
     alpha = ImageChops.invert(bg_mask)
 
     # 3) 羽化：只在真背景外侧 edge 像素的一圈里，按颜色距离做渐变，

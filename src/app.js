@@ -25,6 +25,7 @@ const CFG = {
 const state = {
   display: 'bust',
   expr: 'normal',
+  dancing: false,       // 双击跳舞期间临时换成全身的跳舞图
   busy: false,          // 崩溃/委屈演出中，不响应点击
   quietUntil: 0,
   fullscreen: false,
@@ -50,6 +51,7 @@ const muted = () => state.fullscreen || now() < state.quietUntil;
 /* ---------------- 表现层 ---------------- */
 
 function render() {
+  if (state.dancing) { $img.src = window.Sprites.body('laugh', 'dance'); return; }
   $img.src = state.display === 'body'
     ? window.Sprites.body(state.expr)
     : window.Sprites.face(state.expr);
@@ -101,6 +103,7 @@ function flash(cls, ms) {
 /* ---------------- 狂点 -> 叫妈妈 ---------------- */
 
 function rage() {
+  stopDance();
   state.busy = true;
   state.clicks = [];
   clearTimeout(exprTimer);
@@ -184,15 +187,25 @@ function onClick(ev) {
   flash('poke', 360);
 }
 
+function stopDance() {
+  clearTimeout(danceTimer);
+  state.dancing = false;
+  document.body.classList.toggle('bodymode', state.display === 'body');
+  $pet.classList.remove('dance');
+  render();
+}
+
 function dance() {
   if (state.busy) return;
   state.clicks = [];
+  state.dancing = true;
+  document.body.classList.add('bodymode');
   say(pick(window.LINES.dance));
   clearTimeout(danceTimer);
   $pet.classList.remove('breathe', 'poke');
   $pet.classList.add('dance');
   danceTimer = setTimeout(() => {
-    $pet.classList.remove('dance');
+    stopDance();
     if (!state.busy) $pet.classList.add('breathe');
   }, 2600);
 }

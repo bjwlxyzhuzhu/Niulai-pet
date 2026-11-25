@@ -1,0 +1,77 @@
+'use strict';
+const { launch, check, finish, sleep } = require('./cdp');
+const fs = require('fs'), path = require('path');
+(async () => {
+  const app = await launch(['--settings', '--chat']);
+  try {
+    const s = await app.page('settings.html'); await sleep(1500);
+    check('设置页读到朗读默认值', await s.ev(`$('tts-on').checked && $('tts-pitch').value==='-20'`));
+    const key = 'sk-e2e-not-a-real-key-1234';
+    const r = await s.ev(`P.setApiKey('${key}')`);
+    const raw = fs.readFileSync(path.join(app.dir, 'niulai-config.json'), 'utf8');
+    check('API key 遮罩且不明文落盘', r.mask.endsWith('1234') && !raw.includes(key), r.mask);
+    check('假 key 被拒绝且不崩', !(await s.ev(`P.testKey()`)).ok);
+    await s.ev(`P.saveSettings({tts:{on:true,voice:'zh-CN-YunxiaNeural',pitch:-30,rate:-8}})`);
+    check('设置保存后可读回', (await s.ev(`P.getSettings()`)).tts.pitch === -30);
+    const city = await s.ev(`P.searchCity('宝鸡')`);
+    check('城市搜索首条是陕西宝鸡', city.ok && /陕西/.test(city.list[0].detail), city.ok ? city.list[0] : city.error);
+    if (city.ok) await s.ev(`P.saveSettings({city:${JSON.stringify(city.list[0])}})`);
+    const b = await s.ev(`P.previewBriefing('evening')`);
+    check('晚报含气温', /℃/.test(b.text), b.text);
+    const t = await s.ev(`P.speak('哞，我是牛来。',{on:true,voice:'zh-CN-YunxiaNeural',pitch:-20,rate:-8}).then(r=>({ok:r.ok,error:r.error,n:(r.b64||'').length}))`);
+    const lv = await s.ev(`localSpeak('哞')`);
+    console.log('INFO 语音 Edge=' + (t.ok ? '可用' : t.error) + ' 系统中文语音=' + lv);
+    if (process.env.GITHUB_ACTIONS) console.log('::notice title=tts::Edge=' + t.ok + ' local=' + lv);
+    check('朗读失败能安静降级', t.ok ? t.n > 5000 : typeof lv === 'boolean');
+    check('设置页无异常', s.errors.length === 0, s.errors); await s.shot('settings');
+    const c = await app.page('chat.html'); await sleep(800);
+    check('聊天页就绪且无异常', (await c.ev(`!!document.getElementById('input')`)) && c.errors.length === 0, c.errors); await c.shot('chat');
+    const p = await app.page('index.html');
+    await sleep(3000);
+    check('真素材加载', await p.ev(`!Sprites.usingPlaceholder && $img.naturalWidth > 0`));
+    check('17 张素材', (await p.ev(`Sprites.available.size`)) === 17);
+    const bad = await p.ev(`Promise.all([...Sprites.available].map(f=>new Promise(r=>{const i=new Image();i.onload=()=>r(0);i.onerror=()=>r(f);i.src='../assets/sprites/'+f}))).then(a=>a.filter(Boolean))`);
+    check('素材全部可解码', bad.length === 0, bad);
+    const pos = await p.ev(`(()=>{const r=$img.getBoundingClientRect();return{x:r.left,y:r.top,w:r.width,h:r.height}})()`);
+    const at = (fx, fy) => [pos.x + pos.w * fx, pos.y + pos.h * fy];
+    check('命中：脸上是/透明角不是', await p.ev(`hitTest(${at(.5, .6)}) && !hitTest(${at(.01, .01)})`));
+    const click = async (fx, fy, n) => { const [x, y] = at(fx, fy); await p.mouse('mouseMoved', x, y, { button: 'none' }); await p.mouse('mousePressed', x, y, { buttons: 1, clickCount: n || 1 }); await p.mouse('mouseReleased', x, y, { clickCount: n || 1 }); };
+    for (const [z, fy] of [['head', .12], ['face', .4], ['muzzle', .62], ['body', .92]]) {
+      await p.ev(`state.clicks=[]`); await click(.5, fy);
+      check('部位 ' + z, await p.ev(`LINES.touch.${z}.some(l=>l.t===$text.textContent)`), await p.ev(`$text.textContent`));
+    }
+    await p.ev(`state.clicks=[]`); await click(.5, .6, 1); await click(.5, .6, 2); await sleep(300);
+    check('双击换成跳舞图', await p.ev(`$img.src.includes('body_dance') && $pet.classList.contains('dance')`));
+    await p.shot('dance'); await sleep(2900);
+    check('跳完恢复半身', await p.ev(`$img.src.includes('face_') && !document.body.classList.contains('bodymode')`));
+    await p.ev(`state.clicks=[]`); for (let i = 0; i < 3; i++) await click(.5, .6);
+    check('连点 3 下不耐烦', await p.ev(`LINES.warn.some(l=>l.t===$text.textContent)`));
+    await p.ev(`state.clicks=[]`); for (let i = 0; i < 6; i++) await click(.5, .6);
+    await sleep(700);
+    check('狂点：喊叫+抖动', await p.ev(`state.busy && state.expr==='shout' && $pet.classList.contains('rage')`));
+    const a = await p.ev(`({d:audio.duration,t:audio.currentTime,p:audio.paused,e:audio.error&&audio.error.code})`);
+    console.log('INFO 音频', JSON.stringify(a));
+    check('音频解码 6.57s', Math.abs(a.d - 6.57) < .05 && !a.e, a);
+    await p.shot('rage'); await sleep(8200);
+    check('转委屈', await p.ev(`$pet.classList.contains('sulk')`));
+    await sleep(5500);
+    check('恢复常态', await p.ev(`!state.busy && state.expr==='normal' && !$pet.classList.contains('rage') && !$pet.classList.contains('sulk')`));
+    const sx = await p.ev(`[screenX, screenY]`), [dx, dy] = at(.5, .6);
+    await p.mouse('mousePressed', dx, dy, { buttons: 1 });
+    for (let i = 1; i <= 5; i++) { await p.mouse('mouseMoved', dx - i * 8, dy, { buttons: 1 }); await sleep(60); }
+    await p.mouse('mouseReleased', dx, dy); await sleep(600);
+    const ex = await p.ev(`[screenX, screenY]`);
+    check('拖动移动窗口', ex[0] !== sx[0], { sx, ex });
+    check('松手后不粘指针', await p.ev(`!$pet.classList.contains('dragging')`));
+    check('位置落盘', !!JSON.parse(fs.readFileSync(path.join(app.dir, 'niulai-config.json'))).pos);
+    await p.mouse('mousePressed', dx, dy, { buttons: 1 }); await p.mouse('mouseMoved', dx - 20, dy, { buttons: 1 });
+    await p.mouse('mouseMoved', dx - 30, dy, { buttons: 0, button: 'none' }); await sleep(200);
+    check('丢失 mouseup 能自愈', await p.ev(`!$pet.classList.contains('dragging')`));
+    await sleep(7000);
+    const w = await p.ev(`({proc:state.proc, streak:state.workStreak, full:state.fullscreen})`);
+    check('前台监测有数据', !!w.proc, w);
+    check('桌宠无未捕获异常', p.errors.length === 0, p.errors);
+  } catch (e) { check('测试过程异常', false, e.message); }
+  await app.kill();
+  finish();
+})();

@@ -1,6 +1,7 @@
 # 前台窗口 + 空闲时长观察器：每 5 秒输出一行 JSON {proc, full, idle}
 # 隐私边界：只取「进程名」和「距上次键鼠输入的秒数」。
 # 绝不读取窗口标题、剪贴板、按键内容。数据只在内存里传给渲染层，不落盘、不联网。
+param([int]$ParentPid = 0)
 $ErrorActionPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -21,6 +22,7 @@ public class NLWin {
 Add-Type -AssemblyName System.Windows.Forms
 
 while ($true) {
+  if ($ParentPid -and -not (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue)) { exit }
   $h = [NLWin]::GetForegroundWindow()
   $procId = 0
   [void][NLWin]::GetWindowThreadProcessId($h, [ref]$procId)

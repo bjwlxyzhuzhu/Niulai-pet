@@ -9,6 +9,7 @@ name: Release
 on:
   push:
     tags: ['v*']
+    branches: ['test/**']     # 测试分支：只构建和测试，不发布
   workflow_dispatch:
 
 permissions:
@@ -36,7 +37,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       # 仓库里的 .npmrc 指向国内镜像，GitHub 的机器在海外，直连官方源更快更稳
@@ -61,6 +62,35 @@ jobs:
           done
           ls -la release/*.dmg
 
+      # 测的是打好的包，不是源码；不通过就不会发布
+      - name: 端到端测试（安装包里的程序）
+        timeout-minutes: 8
+        env:
+          E2E_SHOTS: shots
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            hdiutil attach -nobrowse -mountpoint "$RUNNER_TEMP/dmg" release/*-mac-arm64.dmg
+            cp -R "$RUNNER_TEMP"/dmg/*.app "$RUNNER_TEMP/"
+            node test/e2e.js "$(ls "$RUNNER_TEMP"/*.app/Contents/MacOS/* | head -1)"
+          else
+            node test/e2e.js release/win-unpacked/Niulai.exe
+          fi
+
+      # Intel 版在 Apple 芯片机器上靠 Rosetta 跑，没有 Rosetta 时跳过
+      - name: 端到端测试（Intel 版）
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: |
+          if ! arch -x86_64 /usr/bin/true 2>/dev/null; then echo "::warning title=e2e-x64::无 Rosetta，跳过"; exit 0; fi
+          node test/e2e.js "$(ls release/mac/*.app/Contents/MacOS/* | head -1)"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shots-${{ runner.os }}
+          path: shots
+          if-no-files-found: ignore
+
       # 失败时把日志尾部写成注解，不登录也能在 Actions 页面（及 API）看到原因
       - name: 失败时输出日志摘要
         if: failure()
@@ -77,11 +107,13 @@ jobs:
 
   release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: dist-*
           merge-multiple: true
 
       - name: 生成校验值与发布说明

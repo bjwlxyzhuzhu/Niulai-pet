@@ -47,7 +47,7 @@
       <p class="hint">
         用微软 Edge「朗读」背后的免费接口，不需要注册也不要 key。
         <strong>只朗读聊天窗口里的回复</strong>——早晚播报不读，因为那里面有你的日程。
-        这是个非公开接口，微软哪天改了就会失效，那时会安静退回只显示文字。
+        这是个非公开接口，目前微软已收紧，多半连不上；连不上时自动改用系统自带的中文语音，系统也没有就只显示文字。
       </p>
       <div class="checkline">
         <input type="checkbox" id="tts-on">
@@ -141,6 +141,7 @@
     <button id="close">关闭</button>
   </footer>
 
+  <script src="localvoice.js"></script>
   <script src="settings.js"></script>
 </body>
 </html>

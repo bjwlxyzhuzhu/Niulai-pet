@@ -45,7 +45,12 @@ async function play(text) {
   if (!ttsOn || !text) return;
   stopAudio();
   const r = await P.speak(text);
-  if (!r.ok || !ttsOn) return;
+  if (!ttsOn) return;
+  if (!r.ok) {
+    if (await window.localSpeak(text, () => P.ttsPlaying(false))) P.ttsPlaying(true);
+    else $speak.title = '没有可用的语音：Edge 朗读连不上，系统也没装中文语音';
+    return;
+  }
   try {
     audio = new Audio('data:audio/mpeg;base64,' + r.b64);
     audio.addEventListener('ended', () => { P.ttsPlaying(false); audio = null; });
@@ -59,6 +64,7 @@ async function play(text) {
 }
 
 function stopAudio() {
+  if (window.speechSynthesis && speechSynthesis.speaking) { speechSynthesis.cancel(); P.ttsPlaying(false); }
   if (!audio) return;
   try { audio.pause(); } catch (_) { /* 已经停了 */ }
   audio = null;

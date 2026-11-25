@@ -191,7 +191,7 @@ function buildMenu() {
       click: () => { if (win) { const p = defaultPosition(); win.setPosition(p.x, p.y); savePosition(); } },
     },
     { type: 'separator' },
-    { label: '退出', click: () => { savePosition(); app.exit(0); } },
+    { label: '退出', click: () => { savePosition(); if (stopWatch) stopWatch(); app.exit(0); } },   // app.exit 不触发 before-quit
   ]);
 }
 
@@ -242,6 +242,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     createWindow();
     createTray();
+    for (const k of ['settings', 'chat']) if (process.argv.includes('--' + k)) openPanel(k);
     setInterval(checkBriefings, 30000);
     catchUpBriefings();
 
