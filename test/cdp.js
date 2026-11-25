@@ -20,7 +20,7 @@ async function launch(extra, dir) {
     try { return (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).filter((t) => t.type === 'page'); } catch { return []; }
   };
   async function page(match) {
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 180; i++) {
       const t = (await targets()).find((x) => x.url.includes(match));
       if (t) {
         const p = await attach(t);
@@ -32,7 +32,7 @@ async function launch(extra, dir) {
       }
       await sleep(500);
     }
-    throw new Error('窗口没出现: ' + match + ' 现有: ' + (await targets()).map((t) => t.url).join(' '));
+    throw new Error('窗口没出现: ' + match + ' 退出码 ' + child.exitCode + '/' + child.signalCode + ' 现有: ' + (await targets()).map((t) => t.url).join(' '));
   }
   async function attach(t) {
     const ws = new WebSocket(t.webSocketDebuggerUrl);
